@@ -1,0 +1,7 @@
+name: Nebula
+version: '${version}'
+main: kr.sbxt.xtheia.theia.nebula.Nebula
+api-version: 1.19
+load: STARTUP
+authors: [ sbkimxtheia ]
+description: minecraft item customization plugin
