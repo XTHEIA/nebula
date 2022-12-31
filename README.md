@@ -2,14 +2,11 @@
 
 Minecraft item customization plugin for spigot. Use [nebulism](https://nebulism.netlify.app/) for easy use.
 
-English README can be found [here](https://github.com/XTHEIA/nebula/wiki).
-
-spigot을 지원하는 마인크래프트 아이템 커스텀 플러그인입니다.
-쉬운 사용을 위한 [웹 에디터](https://nebulism.netlify.app/)를 지원합니다.
+[한국어 사용 가이드](https://github.com/XTHEIA/nebula/wiki/README(KR))를 참고해주세요.
 
 ---
 
-## 편집할 수 있는 값
+## Editable Property
 
 |        값        |   자료형    |     범위      |        비고         |    예시    | [Nebulism](https://nebulism.netlify.app/) |
 |:---------------:|:--------:|:-----------:|:-----------------:|:--------:|:-----------------------------------------:|
