@@ -10,25 +10,30 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import java.util.Optional;
 
 
-public class EventListener implements Listener {
+public class ServerEventListener implements Listener
+{
 	@EventHandler
-	private void onTryEnchant(PrepareItemEnchantEvent event) {
+	private void onTryEnchant(PrepareItemEnchantEvent event)
+	{
 		Optional<MetaItem> _itemOptional_ = ItemManager.isMetaItem(event.getItem());
-		if (_itemOptional_.isPresent()) {
+		if (_itemOptional_.isPresent())
+		{
 			MetaItem item = _itemOptional_.get();
-			if (! item.isCanEnchantTable()) {
+			if (! item.isCanEnchantTable())
+			{
 				event.setCancelled(true);
 				Location location = event.getEnchantBlock().getLocation();
 				Nebula.Log("Blocked enchant event of MetaItem " + ChatColor.AQUA + item.codeName + ChatColor.WHITE + "!",
 						ChatColor.WHITE + "Player " + ChatColor.YELLOW + event.getEnchanter().getName() + ChatColor.WHITE +
-								", World " + ChatColor.GREEN + location.getWorld().getName() + ChatColor.WHITE +
-								", Pos " + ChatColor.GREEN + location.toVector().toBlockVector());
+						", World " + ChatColor.GREEN + location.getWorld().getName() + ChatColor.WHITE +
+						", Pos " + ChatColor.GREEN + location.toVector().toBlockVector());
 			}
 		}
 	}
 	
 	@EventHandler
-	private void onDealt(EntityDamageByEntityEvent event){
+	private void onDealt(EntityDamageByEntityEvent event)
+	{
 		Nebula.Log(ChatColor.AQUA + "" + event.getDamage());
 	}
 	

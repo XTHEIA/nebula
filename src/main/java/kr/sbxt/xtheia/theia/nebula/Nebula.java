@@ -23,29 +23,24 @@ import java.util.Optional;
 public final class Nebula extends JavaPlugin
 {
 	
-	private static final String prefix = ChatColor.AQUA + "[Nebula]";
 	public static Nebula plugin;
 	public static ConsoleCommandSender logger;
+	private static final ServerEventListener SERVER_EVENT_LISTENER = new ServerEventListener();
 	
 	@Override
 	public void onEnable()
 	{
-		plugin = this;
+		final var plugin = Nebula.plugin = this;
 		logger = Bukkit.getServer().getConsoleSender();
-		getServer().getPluginManager().registerEvents(new EventListener(), plugin);
+		getServer().getPluginManager().registerEvents(SERVER_EVENT_LISTENER, plugin);
 		
-		Log("Hello, World!");
-		
-		File pluginPath = getDataFolder();
+		final var pluginPath = getDataFolder();
 		if (! pluginPath.exists()) pluginPath.mkdir();
-		File presetPath = new File(pluginPath, "presets");
+		final var presetPath = new File(pluginPath, "presets");
 		if (! presetPath.exists())
 		{
 			presetPath.mkdir();
-		}
-		File example = new File(presetPath, "preset-example.yml");
-		if (! example.exists())
-		{
+			final var example = new File(presetPath, "preset-example.yml");
 			Log("Trying to Create example preset file...");
 			try
 			{
@@ -56,11 +51,11 @@ public final class Nebula extends JavaPlugin
 			}
 			try
 			{
-				InputStream stream = getResource("preset-example.yml");
+				final var stream = getResource("preset-example.yml");
 				OutputStream outputStream = new FileOutputStream(example);
 				while (true)
 				{
-					int i = stream.read();
+					final var i = stream.read();
 					if (i == - 1)
 					{
 						break;
@@ -79,166 +74,153 @@ public final class Nebula extends JavaPlugin
 			}
 		}
 		
-		File[] files = presetPath.listFiles();
-		//		if (files != null && files.length == 0) {
-		//			getResource("preset-example.yml").re
-		//		}
-		for (File file : files)
+		
+		// Loading Preset files
+		final var files = presetPath.listFiles();
+		if (files == null || files.length == 0)
 		{
-			Log("", "Found new Preset File! " + ChatColor.GRAY + "(" + file.getAbsolutePath() + ")");
-			if (! file.getName().endsWith(".yml"))
+			Log("Cannot find any preset file!");
+			return;
+		}
+		for (final var file : files)
+		{
+			final var fileName = file.getName();
+			try
 			{
-				Log(ChatColor.RED + "Skipped " + file.getName() + ": Filename not ends with \".yml\"");
-				continue;
-			}
-			YamlConfiguration configuration = YamlConfiguration.loadConfiguration(file);
-			
-			String codeName = configuration.getString(ItemLoader.CODENAME);
-			if (codeName == null || codeName.isEmpty())
-			{
-				Log(ChatColor.RED + "Skipped " + file.getName() + ": Entry \"CodeName\" is null or empty");
-				
-				continue;
-			}
-			
-			if (! ItemManager.codenameAvailable(codeName))
-			{
-				Log(ChatColor.RED + "Skipped " + file.getName() + ": Codename \"" + codeName + "\" Already exists or Invalid!");
-				continue;
-			}
-			
-			MetaItem item = new MetaItem(codeName, ItemManager.newUid());
-			Log("Started Loading new Item " + ChatColor.AQUA + item.codeName + ChatColor.WHITE + "!");
-			
-			ArrayList<String> errors = new ArrayList<>();
-			
-			item.setDisplayName(configuration.getString(ItemLoader.DISPLAYNAME, "Empty Item Display Name"));
-			item.setUnbreakable(configuration.getBoolean(ItemLoader.Unbreakable, false));
-			item.setCanEnchantTable(configuration.getBoolean(ItemLoader.AllowEnchantTable, false));
-			
-			// Material
-			String _matStr_ = configuration.getString(ItemLoader.MATERIAL, "GOLDEN_SWORD");
-			Material _material_ = Material.getMaterial(_matStr_);
-			if (_material_ == null)
-			{
-				errors.add(ChatColor.RED + "[ " + ChatColor.WHITE + _matStr_ + ChatColor.RED + " ] is not available Material!");
-			}
-			else
-			{
-				item.setMaterial(_material_);
-			}
-			
-			// Durability Damage
-			int damage = configuration.getInt(ItemLoader.ITEMDAMAGE, 0);
-			if (damage < 0)
-			{
-				errors.add(ChatColor.RED + "Item Damage must be >= 0! (Input: " + ChatColor.WHITE + damage + ChatColor.RED + ")");
-			}
-			else
-			{
-				item.setItemDamage(damage);
-			}
-			
-			// Wield Damage
-			double wieldDmgBase = configuration.getDouble(ItemLoader.WieldDamageBase, 1.0);
-			if (wieldDmgBase < - 1)
-			{
-				errors.add(ChatColor.RED + "Item Damage must be >= -1! (Input: " + ChatColor.WHITE + wieldDmgBase + ChatColor.RED + ")");
-			}
-			else
-			{
-				item.setWieldDamageBase(wieldDmgBase);
-			}
-			
-			// Lores
-			List<String> loresStr = configuration.getStringList(ItemLoader.Lores);
-			for (String lore : loresStr)
-			{
-				item.addLores(lore);
-			}
-			
-			// Attrs
-			List<String> attrsStr = configuration.getStringList(ItemLoader.AttributeModifiers);
-			for (String attrStr : attrsStr)
-			{
-				String[] attrToken = attrStr.split("/");
-				if (attrToken.length != 4)
+				if (! file.getName().endsWith(".yml"))
 				{
-					errors.add(ChatColor.RED + "Cannot Parse AttributeModifier [ " + ChatColor.WHITE + attrStr + ChatColor.RED + " ]!");
-					continue;
+					throw new ItemDeserializeException("File is not a yaml file");
 				}
-				String _slotStr_ = attrToken[0];
-				EquipmentSlot slot = _slotStr_.equals("ALL") ? null : EquipmentSlot.valueOf(_slotStr_);
-				Attribute attribute = Attribute.valueOf(attrToken[1]);
-				AttributeModifier.Operation operation = AttributeModifier.Operation.valueOf(attrToken[2]);
-				double value = Double.parseDouble(attrToken[3]);
-				item.addAttrModificationList(new AttrModification(attribute, operation, value, slot));
-			}
-			
-			// Flags
-			List<String> flagsStr = configuration.getStringList(ItemLoader.Flags);
-			for (String flagStr : flagsStr)
-			{
-				ItemFlag flag = ItemFlag.valueOf(flagStr);
-				item.addFlag(flag);
-			}
-			
-			// Enchants
-			List<String> enchantsStr = configuration.getStringList(ItemLoader.Enchants);
-			for (String enchantStr : enchantsStr)
-			{
+				final var configuration = YamlConfiguration.loadConfiguration(file);
 				
-				final String errMsg = ChatColor.RED + "Cannot Parse Enchant [ " + ChatColor.WHITE + enchantStr + ChatColor.RED + " ] :: ";
-				
-				String[] enchantToken = enchantStr.split("/");
-				
-				if (enchantToken.length != 3)
+				final var codeName = configuration.getString(ItemLoader.CODENAME);
+				if (codeName == null || codeName.isEmpty())
 				{
-					errors.add(errMsg + ChatColor.RED + "Modifier must follow format like [ " + ChatColor.WHITE + "{ENCHANTMENT}/{VALUE}/{IGNORELEVELRESTRICTION}" + ChatColor.RED + " ]!");
-					continue;
+					throw new ItemDeserializeException("codename empty");
 				}
 				
-				String _enchantmentToken_ = enchantToken[0].toLowerCase(Locale.ROOT);
-				Enchantment _enchantment_ = Enchantment.getByKey(NamespacedKey.minecraft(_enchantmentToken_));
-				if (_enchantment_ == null)
+				if (! ItemManager.codenameAvailable(codeName))
 				{
-					errors.add(errMsg + ChatColor.RED + "Cannot find Enchantment [ " + ChatColor.WHITE + _enchantmentToken_ + ChatColor.RED + " ]!");
-					continue;
+					throw new ItemDeserializeException("codename already in use or unavailable");
 				}
 				
-				try
+				final var item = new MetaItem(codeName, ItemManager.newUid());
+				
+				item.setDisplayName(configuration.getString(ItemLoader.DISPLAYNAME, "Empty Item Display Name"));
+				item.setUnbreakable(configuration.getBoolean(ItemLoader.Unbreakable, false));
+				item.setCanEnchantTable(configuration.getBoolean(ItemLoader.AllowEnchantTable, false));
+				
+				// Material
+				final var _matStr_ = configuration.getString(ItemLoader.MATERIAL, "GOLDEN_SWORD");
+				final var _material_ = Material.getMaterial(_matStr_);
+				if (_material_ == null)
 				{
-					String _levelStr_ = enchantToken[1];
+					throw new ItemDeserializeException("material invalid");
+				}
+				else
+				{
+					item.setMaterial(_material_);
+				}
+				
+				// Durability Damage
+				final var damage = configuration.getInt(ItemLoader.ITEMDAMAGE, 0);
+				if (damage < 0)
+				{
+					throw new ItemDeserializeException("item damage invalid");
+				}
+				else
+				{
+					item.setItemDamage(damage);
+				}
+				
+				// Wield Damage
+				final var wieldDmgBase = configuration.getDouble(ItemLoader.WieldDamageBase, 1.0);
+				if (wieldDmgBase < - 1)
+				{
+					throw new ItemDeserializeException("item wield damage invalid");
+				}
+				else
+				{
+					item.setWieldDamageBase(wieldDmgBase);
+				}
+				
+				// Lores
+				final var loresStr = configuration.getStringList(ItemLoader.Lores);
+				for (final var lore : loresStr)
+				{
+					item.addLores(lore);
+				}
+				
+				// Attrs
+				final var attrsStr = configuration.getStringList(ItemLoader.AttributeModifiers);
+				for (final var attrStr : attrsStr)
+				{
+					final var attrToken = attrStr.split("/");
+					if (attrToken.length != 4)
+					{
+						throw new ItemDeserializeException("attribute modifier invalid");
+					}
+					final var _slotStr_ = attrToken[0];
+					final var slot = _slotStr_.equals("ALL") ? null : EquipmentSlot.valueOf(_slotStr_);
+					final var attribute = Attribute.valueOf(attrToken[1]);
+					final var operation = AttributeModifier.Operation.valueOf(attrToken[2]);
+					final var value = Double.parseDouble(attrToken[3]);
+					item.addAttrModificationList(new AttrModification(attribute, operation, value, slot));
+				}
+				
+				// Flags
+				final var flagsStr = configuration.getStringList(ItemLoader.Flags);
+				for (final var flagStr : flagsStr)
+				{
+					final var flag = ItemFlag.valueOf(flagStr);
+					item.addFlag(flag);
+				}
+				
+				// Enchants
+				final var enchantsStr = configuration.getStringList(ItemLoader.Enchants);
+				for (final var enchantStr : enchantsStr)
+				{
 					
-					int _level_ = Integer.parseInt(_levelStr_);
-					boolean ignore = enchantToken[2].toLowerCase(Locale.ROOT).equals("true");
-					item.addEnchant(new Enchant(_enchantment_, _level_, ignore));
+					final var errMsg = ChatColor.RED + "Cannot Parse Enchant [ " + ChatColor.WHITE + enchantStr + ChatColor.RED + " ] :: ";
 					
-				} catch (NumberFormatException e)
-				{
-					errors.add(errMsg + ChatColor.RED + "[ " + ChatColor.WHITE + enchantToken[1] + ChatColor.RED + " ] is not a Integer!");
-					continue;
-				} catch (Exception e)
-				{
-					errors.add(errMsg + ChatColor.RED + e.getMessage());
-					continue;
+					final var enchantToken = enchantStr.split("/");
+					
+					if (enchantToken.length != 3)
+					{
+						throw new ItemDeserializeException("enchant modifier invalid");
+					}
+					
+					final var _enchantmentToken_ = enchantToken[0].toLowerCase(Locale.ROOT);
+					final var _enchantment_ = Enchantment.getByKey(NamespacedKey.minecraft(_enchantmentToken_));
+					if (_enchantment_ == null)
+					{
+						throw new ItemDeserializeException("enchant modifier invalid");
+					}
+					
+					try
+					{
+						final var _levelStr_ = enchantToken[1];
+						
+						final var _level_ = Integer.parseInt(_levelStr_);
+						final var ignore = enchantToken[2].toLowerCase(Locale.ROOT).equals("true");
+						item.addEnchant(new Enchant(_enchantment_, _level_, ignore));
+					} catch (NumberFormatException e)
+					{
+						throw new ItemDeserializeException("enchant level invalid");
+					} catch (Exception e)
+					{
+						throw new ItemDeserializeException(e.getClass().getName());
+					}
 				}
-			}
-			
-			if (errors.isEmpty())
-			{
+				
 				ItemManager.register(item);
 				Log("Successfully Loaded " + ChatColor.AQUA + item.codeName + ChatColor.WHITE + "! " +
 				    ChatColor.GRAY + "(" + file.getPath() + ")");
-				Optional.ofNullable(getServer().getPlayer("SBkimXTHEIA")).ifPresent(p -> p.getInventory().addItem(item.toItemStack(1)));
-			}
-			else
+				
+			} catch (Exception e)
 			{
-				Log(ChatColor.RED + "Failed to Load " + ChatColor.AQUA + item.codeName + ChatColor.GRAY + " (" + file.getPath() + ")" + ChatColor.WHITE + " :: ");
-				errors.forEach(Nebula::Log);
+				Log(ChatColor.RED + "Failed to Load " + ChatColor.YELLOW + fileName + ChatColor.GRAY + " (" + e.getMessage() + ")");
 			}
-			
-			
 		}
 		Log("", ChatColor.YELLOW + "Finished indexing every single preset files!", "");
 	}
@@ -255,21 +237,17 @@ public final class Nebula extends JavaPlugin
 	
 	}
 	
-	public static void Log(String... message)
+	public static void Log(String message)
 	{
-		for (String s : message)
-		{
-			String _msg_ = prefix + ChatColor.WHITE + " " + s;
-			logger.sendMessage(_msg_);
-		}
+		logger.sendMessage(message);
 	}
 	
-	public static void Message(CommandSender player, String... message)
+	public static void Log(String messsage1, String... message2s)
 	{
-		for (String s : message)
+		Log(messsage1);
+		for (final var message2 : message2s)
 		{
-			String _msg_ = prefix + ChatColor.WHITE + " " + s + ChatColor.WHITE;
-			player.sendMessage(message);
+			Log(message2);
 		}
 	}
 }
